@@ -1,17 +1,56 @@
-# AEGIS // Neural Defense Terminal
+<p align="center">
+  <img src="public/favicon.svg" alt="AEGIS shield" width="48" height="48" />
+</p>
 
-A browser-based tower-defense simulation with an interactive Canvas battlefield and live security telemetry.
-Rendering, audio, and score persistence run locally, with no backend, external services, or API keys.
+<h1 align="center">AEGIS // Neural Defense Terminal</h1>
+
+<p align="center">
+  A browser-based tower-defense simulation with a Canvas battlefield and live security telemetry.<br />
+  Runs locally with bundled assets, procedural audio, and no backend or API keys.
+</p>
+
+<p align="center">
+  <a href="#gameplay">Gameplay</a> &nbsp;·&nbsp;
+  <a href="#features">Features</a> &nbsp;·&nbsp;
+  <a href="#local-setup">Local setup</a> &nbsp;·&nbsp;
+  <a href="#controls">Controls</a> &nbsp;·&nbsp;
+  <a href="#source-layout">Source layout</a>
+</p>
+
+[![AEGIS gameplay showing mixed threats on the circuit, deployed defenses, live telemetry, and security events](docs/images/gameplay.png)](docs/images/gameplay.png)
+
+<p align="center">
+  <sub>Wave 03 with a mixed-threat burst, six defense nodes, and live interception telemetry.</sub>
+</p>
+
+## Gameplay
+
+Spend compute credits to place defenses beside the circuit. Inspect nodes to upgrade their damage,
+range, and cooldown, or run a stress test to inject 40 mixed threats into the current mission.
+
+<p align="center">
+  <a href="docs/images/defense-inspector.png"><img src="docs/images/defense-inspector.png" alt="Level 2 Adversarial Railgun inspector showing combat stats, upgrade cost, and sell refund" width="400" /></a>
+  <a href="docs/images/stress-test.png"><img src="docs/images/stress-test.png" alt="A stress test sending 40 mixed threats past the ingress and a Regex Filter" width="400" /></a>
+</p>
+
+<p align="center">
+  <sub>Defense inspection and a 40-threat stress test, captured from the local application.</sub>
+</p>
 
 ## Features
 
-- Canvas engine driven by `requestAnimationFrame`, with circuit-path movement, vector graphics, particles, and screen shake.
-- Three defense nodes provide rapid fire, area slow and armor stripping, and long-range damage. Regex Filters, Semantic Shields, and Adversarial Railguns support upgrades through level 3 and sell refunds.
-- Four threat classes include Prompt Injections, Data Exfiltrators, DDoS Swarms, and Zero-Day Bosses. A boss appears every fifth wave.
-- Procedural Web Audio synthesizes shots, shield pulses, impacts, and wave-clear chimes using oscillators and gain envelopes.
-- Live telemetry reports FPS, wave, threat latency, and blocked/leaked packets. The event stream supports category filters, text search, and auto-scroll.
-- A 40-threat stress test injects mixed packets simultaneously into the current mission.
-- A local mission archive stores the top five scores and their highest waves in `localStorage`.
+- **Canvas engine** driven by `requestAnimationFrame`, with circuit-path movement, vector graphics,
+  particles, and screen shake.
+- **Three defense nodes** with distinct roles. Regex Filters provide rapid fire, Semantic Shields
+  slow threats and strip armor, and Adversarial Railguns deal long-range damage. Each supports three upgrade levels.
+- **Four threat classes** include Prompt Injections, Data Exfiltrators, DDoS Swarms, and Zero-Day Bosses.
+  A boss appears every fifth wave.
+- **Procedural Web Audio** generates shots, shield pulses, impacts, and wave-clear chimes with
+  oscillators and gain envelopes.
+- **Live telemetry** reports FPS, wave, threat latency, and blocked/leaked packets, alongside a
+  searchable event stream with category filters and auto-scroll.
+- **40-threat stress test** injects mixed packets simultaneously into the current mission.
+- **Local mission archive** stores the top five scores and their highest waves in `localStorage`.
 
 ## Local setup
 
@@ -57,6 +96,7 @@ The stress test uses the current mission's score and integrity. At zero integrit
 ## Source layout
 
 ```text
+docs/images/           Gameplay screenshots used in this README
 src/
   App.tsx               Application state, dialogs, and keyboard shortcuts
   main.tsx              React entry point and bundled font imports
@@ -69,4 +109,6 @@ src/
   styles.css            Responsive terminal styles
 ```
 
-The game loop runs independently of React. Telemetry snapshots publish at most every 125 ms during rendering, with immediate updates for player actions. Canvas resolution follows the device pixel ratio, capped at 2×. If browser storage is unavailable, scores persist for the current session.
+The game loop runs independently of React. Render-loop telemetry updates are throttled to 125 ms
+intervals, with immediate updates for player actions. Canvas resolution follows the device pixel ratio,
+capped at 2×. If browser storage is unavailable, scores persist for the current session.
