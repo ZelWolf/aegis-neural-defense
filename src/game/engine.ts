@@ -1,3 +1,4 @@
+import { AudioSynth } from './audio';
 import { getMuted, setMuted, storageAvailable } from './storage';
 import { DEFENSES, THREATS, defenseStats, formatTime, sellValue, upgradeCost } from './types';
 import type { Defense, DefenseKind, EventCategory, EventSeverity, GameSnapshot, Phase, Point, TerminalEvent, Threat, ThreatKind } from './types';
@@ -40,6 +41,7 @@ export class GameEngine {
   private animationId = 0;
   private listeners = new Set<() => void>();
   private snapshot!: GameSnapshot;
+  private audio = new AudioSynth();
   private storage = storageAvailable();
   private sessionId = '';
   private phase: Phase = 'ready';
@@ -77,6 +79,7 @@ export class GameEngine {
   private messageUntil = 0;
 
   constructor() {
+    this.audio.setMuted(this.muted);
     this.initialize();
   }
 
@@ -146,6 +149,7 @@ export class GameEngine {
   private onPointerLeave = () => { this.hover = null; };
   private onPointerDown = (event: PointerEvent) => {
     if (event.button !== 0 || this.phase === 'gameover') return;
+    this.audio.unlock();
     const slot = this.pointerSlot(event);
     if (!slot) return;
     const existing = this.defenses.find(node => node.col === slot.col && node.row === slot.row);
@@ -166,12 +170,14 @@ export class GameEngine {
     this.credits -= spec.cost;
     const node = this.addDefense(this.selectedDefense, slot.col, slot.row);
     this.burst(node, spec.color, 15);
+    this.audio.play('place');
     this.log('defense', 'success', `${spec.name} deployed at ${String.fromCharCode(65 + slot.col)}${slot.row + 1}. −${spec.cost} CR`);
     this.notify(`${spec.name} deployed. Click another slot to build again.`);
   };
 
   selectDefense(kind: DefenseKind) {
     if (this.phase === 'gameover') return;
+    this.audio.unlock();
     this.selectedDefense = this.selectedDefense === kind ? null : kind;
     this.inspectedId = null;
     this.publish();
@@ -181,12 +187,15 @@ export class GameEngine {
   toggleGrid() { this.showGrid = !this.showGrid; this.publish(); }
   toggleSpeed() { this.speed = this.speed === 1 ? 2 : 1; this.publish(); }
   toggleMuted() {
+    this.audio.unlock();
     this.muted = !this.muted;
+    this.audio.setMuted(this.muted);
     setMuted(this.muted);
     this.publish();
   }
 
   primaryAction() {
+    this.audio.unlock();
     if (this.phase === 'ready' || this.phase === 'intermission') this.startWave();
     else if (this.phase === 'running') this.pause();
     else if (this.phase === 'paused') { this.phase = 'running'; this.publish(); }
@@ -203,17 +212,20 @@ export class GameEngine {
     this.spawnTimer = 0;
     this.log('system', 'warning', `Wave ${String(this.wave).padStart(2, '0')} inbound. ${this.remainingSpawns} threat signatures detected.`);
     if (this.wave % 5 === 0) this.log('threat', 'danger', 'CRITICAL · Zero-day boss signature approaching.');
+    this.audio.play('start');
     this.publish();
   }
 
   stressTest() {
     if (this.phase === 'gameover') return;
+    this.audio.unlock();
     if (this.wave === 0) this.wave = 1;
     this.phase = 'running';
     const kinds: ThreatKind[] = ['injection', 'swarm', 'swarm', 'exfiltrator', 'injection', 'swarm', 'exfiltrator', 'injection', 'swarm', 'zeroday'];
     for (let index = 0; index < 40; index++) this.spawn(kinds[index % kinds.length], Math.random() * 280);
     this.log('system', 'danger', 'STRESS TEST · 40 mixed threats injected simultaneously.');
     this.notify('Stress test active. 40 hostile packets in the perimeter.');
+    this.audio.play('start');
     this.shake = 3;
     this.publish();
   }
@@ -223,11 +235,13 @@ export class GameEngine {
     if (!node || node.level >= 3 || this.phase === 'gameover') return;
     const cost = upgradeCost(node);
     if (this.credits < cost) { this.notify(`Upgrade requires ${cost} CR. Intercept threats to earn compute.`); return; }
+    this.audio.unlock();
     this.credits -= cost;
     node.level++;
     node.invested += cost;
     node.pulse = 1;
     this.burst(node, DEFENSES[node.kind].color, 20);
+    this.audio.play('place');
     this.log('defense', 'success', `${DEFENSES[node.kind].name} upgraded to level ${node.level}. −${cost} CR`);
     this.publish();
   }
@@ -314,6 +328,7 @@ export class GameEngine {
         this.leaked++;
         this.shake = threat.kind === 'zeroday' ? 13 : 7;
         this.burst(threat, '#f17985', 22);
+        this.audio.play('leak');
         this.log('threat', 'danger', `BREACH · ${THREATS[threat.kind].name} reached core. −${THREATS[threat.kind].damage} integrity.`);
         if (this.integrity <= 0) { this.endGame(); return; }
       }
@@ -337,10 +352,12 @@ export class GameEngine {
           enemy.armor = Math.max(0, enemy.armor - (3 + node.level * 2));
           this.hit(enemy, stats.damage, node);
         }
+        this.audio.play('shield');
       } else {
         const railgun = node.kind === 'railgun';
         this.effects.push({ kind: railgun ? 'beam' : 'shot', from: { x: node.x, y: node.y }, to: { x: target.x, y: target.y }, life: railgun ? 0.25 : 0.12, maxLife: railgun ? 0.25 : 0.12, color });
         this.hit(target, stats.damage, node);
+        this.audio.play(railgun ? 'railgun' : 'shot');
         if (railgun) {
           this.burst(target, color, 4);
           if (target.kind === 'zeroday') this.shake = Math.max(this.shake, 2.5);
@@ -355,6 +372,7 @@ export class GameEngine {
       this.credits += bonus;
       this.score += this.wave * 100;
       this.log('system', 'success', `Wave ${String(this.wave).padStart(2, '0')} neutralized. Perimeter secure. +${bonus} CR`);
+      this.audio.play('clear');
       this.notify(`Wave ${String(this.wave).padStart(2, '0')} secured. +${bonus} CR. Fortify, then deploy the next wave.`);
     }
   }
@@ -371,6 +389,7 @@ export class GameEngine {
       const age = (this.elapsed - threat.born) * 1000;
       this.latency = this.blocked === 1 ? age : this.latency * 0.85 + age * 0.15;
       this.burst(threat, spec.color, threat.kind === 'zeroday' ? 35 : 11);
+      this.audio.play('impact');
       if (threat.kind === 'zeroday') {
         this.shake = 9;
         this.effects.push({ kind: 'text', from: { ...threat }, to: threat, life: 1.3, maxLife: 1.3, color: '#f4c179', text: 'ZERO-DAY NEUTRALIZED' });
@@ -387,6 +406,7 @@ export class GameEngine {
     this.selectedDefense = null;
     this.inspectedId = null;
     this.log('system', 'danger', 'CORE COMPROMISED · Session terminated. Mission archived.');
+    this.audio.play('over');
     this.publish();
   }
 
